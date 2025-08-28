@@ -2,12 +2,8 @@ pandas
 numpy
 matplotlib
 seaborn
-warnings
 nltk
 fuzzywuzzy
 rapidfuzz
-sklearn.metrics.pairwise
+scikit-learn
 joblib
-
-
-
