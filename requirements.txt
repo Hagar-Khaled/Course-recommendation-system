@@ -8,3 +8,5 @@ rapidfuzz
 scikit-learn
 joblib
 sentence-transformers
+torch
+transformers
