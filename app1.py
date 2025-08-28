@@ -1,4 +1,5 @@
 import streamlit as st
+st.set_page_config(page_title="Course Recommendation System", layout="wide")
 import joblib
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -38,3 +39,4 @@ if st.button("🔎 Get Recommendations"):
             st.write(f"*Skills:* {row['Skills']}")
             st.write(f"*Description:* {row['Course Description']}")
             st.markdown("---")
+
