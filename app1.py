@@ -1,143 +1,125 @@
 import streamlit as st
 import pandas as pd
 import joblib
+from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# =========================
-# Page Configuration
-# =========================
+# ============================
+# PAGE CONFIGURATION
+# ============================
 st.set_page_config(
-    page_title="🎓 Personalized Course Recommendation System",
-    page_icon="📚",
+    page_title="Personalized Course Recommendation System",
+    page_icon="🎓",
     layout="wide"
 )
 
-# =========================
-# Custom CSS Styling
-# =========================
+# ============================
+# LOAD DATA & MODEL
+# ============================
+@st.cache_resource
+def load_model_and_data():
+    # Load your course dataset and precomputed embeddings
+    data = joblib.load("courses_df1.pkl")
+    embeddings = joblib.load("embeddings1.pkl")
+
+    # Load SentenceTransformer model directly instead of using embedding_model1.pkl
+    model = SentenceTransformer("all-MiniLM-L6-v2")
+
+    return data, embeddings, model
+
+data, embeddings, model = load_model_and_data()
+
+# ============================
+# CUSTOM CSS STYLING
+# ============================
 st.markdown("""
     <style>
-        /* App background */
-        .stApp {
-            background-color: #f7f9fc;
-        }
-
-        /* Title */
-        .title {
-            font-size: 36px !important;
-            color: #2c3e50;
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 15px;
-        }
-
-        /* Subtitle */
-        .subtitle {
-            font-size: 18px;
-            color: #7f8c8d;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        /* Course Card */
-        .course-card {
-            background-color: white;
-            padding: 20px;
-            margin-bottom: 15px;
-            border-radius: 15px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            transition: transform 0.2s;
-        }
-
-        .course-card:hover {
-            transform: scale(1.02);
-            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
-        }
-
-        /* Buttons */
-        .stButton>button {
-            background-color: #3498db;
-            color: white;
-            font-size: 16px;
-            border-radius: 10px;
-            padding: 10px 20px;
-        }
-
-        .stButton>button:hover {
-            background-color: #2980b9;
-            color: white;
-        }
+    body {
+        background-color: #f8f9fa;
+        color: #222;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .main-title {
+        text-align: center;
+        font-size: 38px;
+        color: #4a90e2;
+        margin-bottom: 20px;
+    }
+    .sub-title {
+        text-align: center;
+        font-size: 20px;
+        color: #333;
+        margin-bottom: 40px;
+    }
+    .stButton>button {
+        background-color: #4a90e2;
+        color: white;
+        border-radius: 10px;
+        padding: 10px 24px;
+        font-size: 18px;
+        border: none;
+    }
+    .stButton>button:hover {
+        background-color: #357ABD;
+    }
+    .course-card {
+        padding: 15px;
+        margin: 10px;
+        border-radius: 10px;
+        background-color: #ffffff;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# =========================
-# Load Preprocessed Data & Models
-# =========================
-@st.cache_resource
-def load_data():
-    data = joblib.load("courses_df1.pkl")
-    model = joblib.load("embedding_model1.pkl")
-    embeddings = joblib.load("embeddings1.pkl")
-    return data, model, embeddings
+# ============================
+# HEADER
+# ============================
+st.markdown('<h1 class="main-title">🎓 Personalized Course Recommendation System</h1>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">Find the best courses based on your interests 🚀</p>', unsafe_allow_html=True)
 
-data, model, embeddings = load_data()
+# ============================
+# USER INPUT
+# ============================
+search_query = st.text_input("🔍 Type a keyword, skill, or topic:", "")
 
-# =========================
-# App Title & Description
-# =========================
-st.markdown('<div class="title">🎓 Personalized Course Recommendation System</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Find the best courses based on your interests 🚀</div>', unsafe_allow_html=True)
+# ============================
+# RECOMMENDATION FUNCTION
+# ============================
+def get_recommendations(query, top_n=5):
+    query_embedding = model.encode([query])
+    similarity_scores = cosine_similarity(query_embedding, embeddings)
+    top_indices = similarity_scores[0].argsort()[-top_n:][::-1]
+    return data.iloc[top_indices]
 
-# =========================
-# Search Box
-# =========================
-user_input = st.text_input(
-    "🔍 Type a keyword or course name",
-    placeholder="e.g. Machine Learning, Data Science, AI, Python ..."
-)
-
-# =========================
-# Recommend Courses
-# =========================
-if st.button("🔎 Recommend Courses"):
-    if user_input.strip() == "":
-        st.warning("⚠️ Please enter a keyword to search.")
+# ============================
+# SHOW RECOMMENDATIONS
+# ============================
+if st.button("Find Courses"):
+    if search_query.strip() == "":
+        st.warning("⚠️ Please enter a keyword to search!")
     else:
-        # Encode user input
-        user_embedding = model.encode([user_input], convert_to_tensor=False)
-        similarities = cosine_similarity([user_embedding], embeddings)[0]
+        st.subheader("🎯 Recommended Courses for You:")
+        results = get_recommendations(search_query, top_n=5)
 
-        # Get top 5 recommendations
-        top_indices = similarities.argsort()[::-1][:5]
-        recommendations = data.iloc[top_indices].reset_index(drop=True)
-
-        # Show results
-        st.subheader("🎯 Top 5 Recommended Courses:")
-        for i, row in recommendations.iterrows():
+        for idx, row in results.iterrows():
             st.markdown(f"""
                 <div class="course-card">
-                    <h3>📌 {row['Course Name']}</h3>
-                    <p><b>📖 Description:</b> {row['Course Description']}</p>
-                    <p><b>🎯 Skills:</b> {row['Skills']}</p>
-                    <p><b>🏛️ University:</b> {row['University']}</p>
-                    <p><b>📊 Difficulty:</b> {row['Difficulty Level']}</p>
+                    <h3>{row['Course Name']}</h3>
+                    <p><strong>University:</strong> {row['University']}</p>
+                    <p><strong>Difficulty:</strong> {row['Difficulty Level']}</p>
+                    <p>{row['Course Description'][:300]}...</p>
+                    <p><strong>Skills:</strong> {row['Skills']}</p>
                 </div>
             """, unsafe_allow_html=True)
 
-        # Download button
-        csv = recommendations.to_csv(index=False)
-        st.download_button(
-            label="📥 Download Recommendations as CSV",
-            data=csv,
-            file_name="recommended_courses.csv",
-            mime="text/csv"
-        )
-
-# =========================
-# Footer
-# =========================
-st.markdown("---")
-st.markdown(
-    "<div style='text-align:center; color:#7f8c8d;'>🚀 Built with ❤️ using Streamlit</div>",
-    unsafe_allow_html=True
-)
+# ============================
+# FOOTER
+# ============================
+st.markdown("""
+    <br><br>
+    <hr>
+    <p style="text-align: center; color: gray;">
+        Built with ❤️ using <strong>Streamlit</strong> & <strong>Sentence Transformers</strong>
+    </p>
+""", unsafe_allow_html=True)
